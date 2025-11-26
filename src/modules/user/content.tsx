@@ -84,38 +84,64 @@ export default function TestUserPage() {
 
 	/**
 	 * useEffect hook - Runs once when component mounts
-	 * Automatically fetches users when the page loads
+	 * No initial fetch since we need credentials
 	 */
 	useEffect(() => {
-		// fetchUsers();
+		// Don't fetch on mount - we need user credentials and ID
 	}, []);
 
 	/**
-	 * Fetches all users from the backend via Next.js API route
-	 * Updates the users state with fetched data
+	 * Fetches user details by ID using their credentials (Basic Auth)
+	 * @param userId - User's ID from database
+	 * @param username - User's email/username
+	 * @param password - User's password
 	 */
-	async function fetchUsers(): Promise<void> {
+	async function fetchUserById(
+		userId: number,
+		username: string,
+		password: string
+	): Promise<void> {
 		try {
 			setLoading(true);
-			console.log("🔍 Fetching users...");
+			console.log("🔍 Fetching user with ID:", userId);
 
-			const response = await fetch("/api/users");
-			const result: ApiResponse<User | User[]> = await response.json();
+			// Pass userId and credentials as query parameters to Next.js API route
+			const response = await fetch(
+				`/api/users?userId=${userId}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+			);
+			const result: ApiResponse<User> = await response.json();
 
 			console.log("📦 API Response:", result);
 
+			// Check if the API returned an error
 			if (result.success === false) {
 				console.error("❌ Error:", result.message);
 				alert(`Error: ${result.message}`);
 				return;
 			}
 
-			const data = result.data || result;
-			console.log("✅ Users data:", data);
+			// Extract user data from response
+			const data = result.data;
+			console.log("✅ User data:", data);
 
-			setUsers(Array.isArray(data) ? data : [data as User]);
+			// Add or update user in the list
+			if (data) {
+				setUsers((prevUsers) => {
+					// Check if user already exists in list
+					const exists = prevUsers.find((u) => u.id === data.id);
+					if (exists) {
+						// Update existing user
+						return prevUsers.map((u) =>
+							u.id === data.id ? data : u
+						);
+					}
+					// Add new user to list
+					return [...prevUsers, data];
+				});
+			}
 		} catch (error) {
-			console.error("❌ Error fetching users:", error);
+			console.error("❌ Error fetching user:", error);
+			alert("Failed to fetch user details");
 		} finally {
 			setLoading(false);
 		}
@@ -124,6 +150,8 @@ export default function TestUserPage() {
 	/**
 	 * Handles form submission to create a new user
 	 * Called by Formik when form is submitted and validation passes
+	 * @param values - Form values from Formik
+	 * @param formikHelpers - Formik helper functions
 	 */
 	async function handleSubmit(
 		values: FormData,
@@ -132,6 +160,7 @@ export default function TestUserPage() {
 		try {
 			console.log("📤 Creating new user:", values);
 
+			// Step 1: Create the user via POST request
 			const response = await fetch("/api/users", {
 				method: "POST",
 				headers: {
@@ -143,6 +172,7 @@ export default function TestUserPage() {
 			const result: ApiResponse<User> = await response.json();
 			console.log("📦 API Response:", result);
 
+			// Check if creation failed
 			if (result.success === false) {
 				console.error("❌ Error:", result.message);
 				alert(`Error: ${result.message}`);
@@ -151,14 +181,19 @@ export default function TestUserPage() {
 
 			const newUser = result.data || (result as User);
 			console.log("✅ User created successfully:", newUser);
+			console.log("👤 User ID:", newUser.id);
 
-			fetchUsers();
+			// Step 2: Fetch the user details using their ID and credentials
+			await fetchUserById(newUser.id, values.username, values.password);
+
+			// Step 3: Reset form and show success message
 			resetForm();
 			alert("User created successfully!");
 		} catch (error) {
 			console.error("❌ Error creating user:", error);
 			alert("Failed to create user");
 		} finally {
+			// Re-enable the submit button
 			setSubmitting(false);
 		}
 	}
@@ -176,6 +211,7 @@ export default function TestUserPage() {
 					Create New User
 				</h2>
 
+				{/* Formik wrapper handles form state and validation */}
 				<Formik
 					initialValues={initialValues}
 					validationSchema={validationSchema}
@@ -202,6 +238,7 @@ export default function TestUserPage() {
 											: "border-gray-300"
 									}`}
 								/>
+								{/* Display validation error message */}
 								<ErrorMessage name="first_name">
 									{(msg) => (
 										<div className="text-red-600 text-sm mt-1">
@@ -298,14 +335,16 @@ export default function TestUserPage() {
 							{/* Submit Button */}
 							<button
 								type="submit"
-								disabled={isSubmitting}
+								disabled={isSubmitting || loading}
 								className={`w-full py-3 px-4 rounded-md font-semibold text-white transition-colors ${
-									isSubmitting
+									isSubmitting || loading
 										? "bg-gray-400 cursor-not-allowed"
 										: "bg-blue-600 hover:bg-blue-700"
 								}`}
 							>
-								{isSubmitting ? "Creating..." : "Create User"}
+								{isSubmitting || loading
+									? "Creating..."
+									: "Create User"}
 							</button>
 						</Form>
 					)}
@@ -314,32 +353,22 @@ export default function TestUserPage() {
 
 			{/* ============ USERS LIST SECTION ============ */}
 			<div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-				{/* Header with title and refresh button */}
+				{/* Header with title */}
 				<div className="flex justify-between items-center mb-6">
 					<h2 className="text-xl font-semibold text-gray-800">
-						Users List
+						Created Users
 					</h2>
-					<button
-						onClick={fetchUsers}
-						disabled={loading}
-						className={`px-4 py-2 rounded-md font-medium text-white transition-colors ${
-							loading
-								? "bg-gray-400 cursor-not-allowed"
-								: "bg-green-600 hover:bg-green-700"
-						}`}
-					>
-						{loading ? "🔄 Loading..." : "🔄 Refresh"}
-					</button>
+					{loading && (
+						<span className="text-sm text-gray-500">
+							Loading...
+						</span>
+					)}
 				</div>
 
-				{/* Conditional rendering based on loading state and data */}
-				{loading ? (
-					<p className="text-center text-gray-600">
-						Loading users...
-					</p>
-				) : users.length === 0 ? (
+				{/* Conditional rendering based on user list state */}
+				{users.length === 0 ? (
 					<p className="text-center text-gray-500">
-						No users found. Create one above!
+						No users yet. Create one above!
 					</p>
 				) : (
 					<div className="space-y-4">
@@ -348,6 +377,7 @@ export default function TestUserPage() {
 								key={user.id || index}
 								className="bg-gray-50 border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
 							>
+								{/* User details in a two-column grid */}
 								<div className="grid grid-cols-[120px_1fr] gap-3 text-sm">
 									<span className="font-semibold text-gray-700">
 										ID:
