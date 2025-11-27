@@ -28,10 +28,87 @@ export async function createPost(formData: FormData) {
 		// tell Next.js to revalidate the "/" route (homepage) so it refetches fresh data
 		// this makes the page show the new post without using window.reload()
 		revalidatePath("/");
+		revalidatePath("/my-posts");
 
 		return { success: true };
 	} catch (error) {
-		console.error("Error creating post:", error);
+		console.error("Create post error:", error);
 		return { success: false, error: "Failed to create post" };
+	}
+}
+
+// edit post
+export async function updatePost(formData: FormData) {
+	const postId = formData.get("postId") as string;
+	const title = formData.get("title") as string;
+	const content = formData.get("content") as string;
+	const userId = formData.get("userId") as string;
+
+	if (!postId || !title || !content || !userId) {
+		return { success: false, error: "Missing required fields" };
+	}
+
+	try {
+		// check author
+		const post = await prisma.post.findUnique({
+			where: { id: parseInt(postId) },
+		});
+
+		if (!post || post.authorId !== parseInt(userId)) {
+			return { success: false, error: "Unauthorized" };
+		}
+
+		// update post in postgre
+		await prisma.post.update({
+			where: { id: parseInt(postId) },
+			data: {
+				title,
+				content,
+				updatedAt: new Date(),
+			},
+		});
+
+		revalidatePath("/");
+		revalidatePath("/my-posts");
+		revalidatePath(`/post/${postId}`);
+
+		return { success: true };
+	} catch (error) {
+		console.error("Update post error:", error);
+		return { success: false, error: "Failed to update post" };
+	}
+}
+
+// delete post
+export async function deletePost(formData: FormData) {
+	const postId = formData.get("postId") as string;
+	const userId = formData.get("userId") as string;
+
+	if (!postId || !userId) {
+		return { success: false, error: "Missing required fields" };
+	}
+
+	try {
+		// check author
+		const post = await prisma.post.findUnique({
+			where: { id: parseInt(postId) },
+		});
+
+		if (!post || post.authorId !== parseInt(userId)) {
+			return { success: false, error: "Unauthorized" };
+		}
+
+		// delete post in db
+		await prisma.post.delete({
+			where: { id: parseInt(postId) },
+		});
+
+		revalidatePath("/");
+		revalidatePath("/my-posts");
+
+		return { success: true };
+	} catch (error) {
+		console.error("Delete post error:", error);
+		return { success: false, error: "Failed to delete post" };
 	}
 }
