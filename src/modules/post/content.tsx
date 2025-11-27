@@ -2,13 +2,7 @@
 
 import Post from "@/components/post";
 import { useRouter, useParams } from "next/navigation";
-
-const mockPost: Post = {
-	id: "1",
-	title: "Post 1",
-	content: "Content 1",
-	createdAt: 0,
-};
+import { mockPost } from "@/mocks/posts";
 
 const Content = () => {
 	const router = useRouter();
