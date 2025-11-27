@@ -1,74 +1,72 @@
-"use client";
+// "use client";
 
 import Link from "next/link";
 import Post from "@/components/post";
 import Pagination from "@/modules/home/pagination";
+// import { useEffect, useState } from "react";
+// import { useSearchParams } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
-const mockPosts: Post[] = [
-	{
-		id: "1",
-		title: "Post 1",
-		content: "Content 1",
-		createdAt: 0,
-	},
-	// {
-	// 	id: "2",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-	// {
-	// 	id: "3",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-	// {
-	// 	id: "4",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-	// {
-	// 	id: "5",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-	// {
-	// 	id: "6",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-	// {
-	// 	id: "7",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-	// {
-	// 	id: "8",
-	// 	title: "",
-	// 	content: "Content 1",
-	// 	createdAt: 0,
-	// },
-];
+interface PostListProps {
+	searchParams: Promise<{ page?: string }>;
+}
 
-const PostList = () => {
+// async function can directly access db
+const PostList = async ({ searchParams }: PostListProps) => {
+	// await searchParams at first
+	const params = await searchParams;
+	const currentPage = parseInt(params?.page || "1");
+	const pageSize = 6;
+
+	// directly read data from postgres db (no need API)
+	const [posts, totalCount] = await Promise.all([
+		prisma.post.findMany({
+			skip: (currentPage - 1) * pageSize,
+			take: pageSize,
+			include: {
+				author: {
+					select: {
+						id: true,
+						username: true,
+					},
+				},
+			},
+			orderBy: {
+				createdAt: "desc",
+			},
+		}),
+		prisma.post.count(),
+	]);
+
+	const totalPages = Math.ceil(totalCount / pageSize);
+
+	// transform data format to meet frontend post interface
+	const transformedPosts = posts.map((post) => ({
+		id: post.id.toString(),
+		title: post.title,
+		content: post.content,
+		createdAt: post.createdAt.getTime(),
+		author: post.author,
+	}));
+
 	return (
 		<div className="mt-8">
-			{mockPosts.map((post: Post) => (
-				<Link key={post.id} href={`/post/${post.id}`}>
-					<Post post={post} />
-				</Link>
-			))}
-			<div
-				// mt-8: margin top 8*4 = 32 px
-				className="mt-8"
-			>
-				<Pagination totalPages={2} />
-			</div>
+			{transformedPosts.length === 0 ? (
+				<div className="text-white/50 text-center py-8">
+					No posts yet
+				</div>
+			) : (
+				transformedPosts.map((post) => (
+					<Link key={post.id} href={`/post/${post.id}`}>
+						<Post post={post} />
+					</Link>
+				))
+			)}
+			{totalPages > 1 && (
+				<div className="mt-8">
+					<Pagination totalPages={totalPages} />
+				</div>
+			)}
 		</div>
 	);
 };
