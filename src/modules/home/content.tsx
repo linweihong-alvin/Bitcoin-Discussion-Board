@@ -2,10 +2,18 @@ import CommentBtn from "@/modules/home/comment-btn";
 import Pagination from "@/modules/home/pagination";
 import Image from "next/image";
 import PostList from "./post-list";
+import MyPostsLink from "./my-posts-link";
 
-const Content = () => {
+interface ContentProps {
+	searchParams: Promise<{ page?: string }>;
+}
+
+const Content = async ({ searchParams }: ContentProps) => {
 	return (
 		<>
+			<div className="flex justify-end mb-4">
+				<MyPostsLink />
+			</div>
 			<Image
 				// can be accessed by localhost:3000/images/xxx.jpg
 				src="/images/bitcoin-banner.jpeg"
@@ -39,7 +47,8 @@ const Content = () => {
 				<CommentBtn />
 			</div>
 
-			<PostList />
+			{/* pass searchParams to PostList */}
+			<PostList searchParams={searchParams} />
 		</>
 	);
 };
