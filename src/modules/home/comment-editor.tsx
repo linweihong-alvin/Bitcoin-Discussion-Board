@@ -59,23 +59,19 @@ const CommentEditor = ({ isOpen, setIsOpen }: CommentEditorProps) => {
 
 		setIsSubmitting(true);
 
-		// call post add api
+		// create a post
 		try {
-			const response = await fetch("/api/post/add", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					title,
-					content,
-					authorId: user.id,
-				}),
-			});
+			// prepare form data
+			const formData = new FormData();
+			formData.append("title", title);
+			formData.append("content", content);
+			formData.append("authorId", user.id.toString());
 
-			const result = await response.json();
+			// use server action running on server
+			// once add one post, revalidatePath will make homepage refetch new post lists
+			const result = await createPost(formData);
 
-			if (result.status === 1) {
+			if (result.success) {
 				// Success
 				setTitle("");
 				setContent("");
@@ -88,7 +84,7 @@ const CommentEditor = ({ isOpen, setIsOpen }: CommentEditorProps) => {
 				// Show success toast
 				toast.success("Post created successfully!");
 			} else {
-				alert(result.message || "Failed to create post");
+				alert(result.error || "Failed to create post");
 			}
 		} catch (error) {
 			console.error("Failed to create post:", error);
