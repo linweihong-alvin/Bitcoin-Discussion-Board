@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
 
 		// Call Spring Boot backend with user ID in path and Basic Auth
 		const response = await fetch(
-			`http://localhost:8080/v1/user/${userId}`,
+			`http://demo.alvincloud.me/v1/user/${userId}`,
+			// `http://localhost:8080/v1/user/${userId}`,
 			{
 				method: "GET",
 				headers: {
@@ -101,7 +102,8 @@ export async function POST(request: NextRequest) {
 		console.log("📤 Creating user:", { first_name, last_name, username });
 
 		// Call Spring Boot backend to create user
-		const response = await fetch("http://localhost:8080/v1/user", {
+		const response = await fetch("http://demo.alvincloud.me/v1/user", {
+			// const response = await fetch("http://localhost:8080/v1/user", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
